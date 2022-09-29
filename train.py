@@ -1,5 +1,4 @@
 import torch
-import torchvision
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
@@ -10,23 +9,14 @@ from torchvision.models import resnet18
 import matplotlib.pyplot as plt
 import streamlit as st
 from PIL import Image
-import numpy as np
 
-st.title("Train few shot classification models in Browser")
+st.title("Train Few Shot classification models in Browser")
 col1, col2 = st.columns(2)
 
 
 def load_img(image):
     img = Image.open(image)
     return img
-
-#  Rough work
-#
-# x = torch.tensor([1, 2, 3, 1, 2, 3, 2, 1, 0, 2, 0, 1], dtype=torch.float)
-# print(len(x.unique()), x.unique(), torch.typename(x))
-# x = x.reshape(3, 4)
-# print(x)
-# print(x.mean(0))
 
 
 class Network(nn.Module):
@@ -59,7 +49,7 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-n_way = col2.slider("Number Of Unique Classes in the dataset", max_value=10, min_value=2)
+n_way = col2.slider("Number Of Unique Classes in the dataset", max_value=40, min_value=2)
 n_shot = col2.number_input("Number Of Images of each Class in the Support Set", step=1)
 n_query = col2.number_input("Number Of Images of each Class in the Query Set", step=1)
 train_tasks = col1.number_input("Number Of Episodes in the Train Set", step=1)
@@ -98,7 +88,7 @@ def train_model():
     for i, (support_images, support_labels, query_images, query_labels, _) in enumerate(train_loader):
         out = model(support_images, support_labels, query_images)
         loss = criterion(out, query_labels)
-        loss_list.append(loss)
+        loss_list.append(loss.item())
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -112,19 +102,15 @@ def train_model():
                 "loss": loss,
                 "model_state_dict": model.state_dict(),
                 "Episode_num": i
-            }, "C:/Users/harsh/Desktop/Few_shot_model.pth.tar")
+            }, "Few_shot_model.pth.tar")
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
 
     ax.plot(loss_list)
-
     ax.set_xlabel("Episodes")
     ax.set_ylabel("Training Loss")
-    # plt.plot(loss_list)
-    # plt.show()
-    # fig, ax = plt.subplot()
-    # ax.plot(loss_list)
+    
     st.write(fig)
 
 
@@ -132,8 +118,7 @@ train = st.checkbox("Train model")
 if train is True:
     train_model()
 
-checkpoint = torch.load("C:/Users/harsh/PycharmProjects/Harshvir_S/few_shot_learning_project//Few_shot_model.pth.tar",
-                        map_location=torch.device('cpu'))
+checkpoint = torch.load("Few_shot_model.pth.tar", map_location=torch.device('cpu'))
 model.load_state_dict(checkpoint['model_state_dict'])
 optimizer.load_state_dict(checkpoint['optim_state_dict'])
 episode_num = checkpoint['Episode_num']
@@ -161,7 +146,7 @@ if image is not None:
     image1 = load_img(image)
     # print(image1.shape)
     for i, (support_images, support_labels, _, query_labels, _) in enumerate(train_loader):
-        image1 = transform(image1)
+        image1 = transform(image1.convert('RGB'))
         image1 = image1.repeat(n_way * n_query, 1, 1, 1)
         out = model(support_images, support_labels, image1)
         st.write("Image belongs to class: "+str(max((torch.max(out, 1)[1])).item()))
