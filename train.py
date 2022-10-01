@@ -12,6 +12,10 @@ from PIL import Image
 
 st.title("Train Few Shot classification models in Browser")
 col1, col2 = st.columns(2)
+modelAvailable = False
+test_box = None
+test_image = None
+image = None
 
 
 def load_img(image):
@@ -39,7 +43,7 @@ class Network(nn.Module):
 
 data_path = st.text_input("Enter the path of the data set")
 split_ratio = col1.slider("Train-Test split ratio")/100
-image_size = st.number_input("Select an image size for data augmentation", step=1, min_value=100, max_value=512)
+image_size = st.number_input("Image size for Data augmentation", step=1, min_value=100, max_value=512)
 
 
 transform = transforms.Compose([
@@ -49,18 +53,17 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-n_way = col2.slider("Number Of Unique Classes in the dataset", max_value=40, min_value=2)
-n_shot = col2.number_input("Number Of Images of each Class in the Support Set", step=1)
-n_query = col2.number_input("Number Of Images of each Class in the Query Set", step=1)
-train_tasks = col1.number_input("Number Of Episodes in the Train Set", step=1)
-test_tasks = col1.number_input("Number Of Episodes in the Test Set", step=1)
+n_way = col2.slider("Unique Classes in the dataset", max_value=40, min_value=2)
+n_shot = col2.number_input("Count of Images in each Class of Support Set", step=1)
+n_query = col2.number_input("Count of Images in each Class of Query Set", step=1)
+train_tasks = col1.number_input("Episodes in the Train Set", step=1)
+test_tasks = col1.number_input("Episodes in the Test Set", step=1)
 learning_rate = 3e-4
-# print(n_way, split_ratio, n_shot)
+
 try:
     data = Datasets.ImageFolder(root=data_path, transform=transform)
     split_list = [int(split_ratio * len(data)), len(data) - int(split_ratio * len(data))]
     train_set, test_set = torch.utils.data.random_split(dataset=data, lengths=split_list)
-    # print(split_list, len(train_set))
 
     train_set.get_labels = lambda: [i[1] for i in train_set]
     train_sampler = TaskSampler(train_set, n_way=n_way, n_shot=n_shot, n_query=n_query, n_tasks=train_tasks)
@@ -110,7 +113,7 @@ def train_model():
     ax.plot(loss_list)
     ax.set_xlabel("Episodes")
     ax.set_ylabel("Training Loss")
-    
+
     st.write(fig)
 
 
@@ -118,11 +121,16 @@ train = st.checkbox("Train model")
 if train is True:
     train_model()
 
-checkpoint = torch.load("Few_shot_model.pth.tar", map_location=torch.device('cpu'))
-model.load_state_dict(checkpoint['model_state_dict'])
-optimizer.load_state_dict(checkpoint['optim_state_dict'])
-episode_num = checkpoint['Episode_num']
-loss = checkpoint['loss']
+try:
+    checkpoint = torch.load("Few_shot_model.pth.tar", map_location=torch.device('cpu'))
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optim_state_dict'])
+    episode_num = checkpoint['Episode_num']
+    loss = checkpoint['loss']
+    modelAvailable = True
+except:
+    print("Model not available")
+    modelAvailable = False
 
 
 def evaluate():
@@ -137,11 +145,16 @@ def evaluate():
         st.write(f"Model tested on {len(test_loader)} tasks with Accuracy of {correct*100/total} %")
 
 
-test_box = st.checkbox("Evaluate Model on Test set")
+if modelAvailable:
+    test_box = st.checkbox("Evaluate Model on Test set")
+    test_image = st.checkbox("Evaluate Model on Single Image Input")
+
 if test_box is True:
     evaluate()
 
-image = st.file_uploader("**Model's Output for a single image**")
+if test_image is True:
+    image = st.file_uploader("**Model's Output for a single image**")
+
 if image is not None:
     image1 = load_img(image)
     # print(image1.shape)
