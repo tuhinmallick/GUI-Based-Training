@@ -19,8 +19,7 @@ image = None
 
 
 def load_img(image):
-    img = Image.open(image)
-    return img
+    return Image.open(image)
 
 
 class Network(nn.Module):
@@ -138,7 +137,7 @@ def evaluate():
     with torch.no_grad():
         correct = 0
         total = 0
-        for i, (support_images, support_labels, query_images, query_labels, _) in enumerate(test_loader):
+        for support_images, support_labels, query_images, query_labels, _ in test_loader:
             out = model(support_images, support_labels, query_images)
             correct += (torch.max(out, 1)[1] == query_labels).sum().item()
             total += len(query_labels)
@@ -158,9 +157,9 @@ if test_image is True:
 if image is not None:
     image1 = load_img(image)
     # print(image1.shape)
-    for i, (support_images, support_labels, _, query_labels, _) in enumerate(train_loader):
+    for support_images, support_labels, _, query_labels, _ in train_loader:
         image1 = transform(image1.convert('RGB'))
         image1 = image1.repeat(n_way * n_query, 1, 1, 1)
         out = model(support_images, support_labels, image1)
-        st.write("Image belongs to class: "+str(max((torch.max(out, 1)[1])).item()))
+        st.write(f"Image belongs to class: {str(max(torch.max(out, 1)[1]).item())}")
         break
